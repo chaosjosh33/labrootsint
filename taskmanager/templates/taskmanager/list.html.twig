@@ -1,0 +1,217 @@
+{% extends 'base.html.twig' %}
+{% block body %}
+<style>
+	#list {
+		display: flex;
+		flex-direction: column;
+	}
+	.task-item {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-evenly;
+		margin-bottom: 8px;
+		border: black 1px solid;
+	}
+	.header {
+		background-color: lightslategray;
+	}
+	#create-task {
+		display: flex;
+		justify-content: space-between;
+	}
+	.form-field {
+		display: flex;
+		flex-direction: column;
+	}
+	.container {
+		max-width: 800px;
+		margin-left: auto;
+		margin-right: auto;
+	}
+	.grey {
+		background-color: grey;
+	}
+	#messages {
+		color: red;
+	}
+</style>
+<div class="container">
+	<h1>Task Manager</h1>
+	<div id="messages"></div>
+	<h4>Create new</h4>
+	<div class='create'>
+		<div class="form">
+			<form id="create-task">
+				<input type="hidden" id="id" name="id" />
+				<div class="form-field">
+					<label for="title">title:</label>
+					<input type="text" name="title" id="title" placeholder="title" required/>
+				</div>
+				<div class="form-field">
+					<label for="status">status: </label>
+					<select id="status" name="status">
+						<option value="new" selected>New</option>
+						<option value="incomplete">incomplete</option>
+						<option value="in-progress">in progress</option>
+						<option value="complete">complete</option>
+					</select>
+				</div>
+				<div class="form-field">
+					<label for="description">Description:</label>
+					<textarea name="description" id="description" placeholder="description" required></textarea>
+				</div>
+				<button id='submit'>Submit</button>
+			</form>
+		</div>
+	</div>
+	<h4>list of tasks</h4>
+	<div id="list">
+			<div class="task-item header">
+				<div>Title</div>
+				<div>Created date</div>
+				<div>Last Updated</div>
+				<div>Status</div>
+				<div>Description</div>
+				<div>
+					ACTION
+				</div>
+			</div>
+		{% for task in tasks %}
+			<div class="task-item">
+				<div>{{task.title}}</div>
+				<div>{{task.created|date('Y-m-d H:i:s')}}</div>
+				<div>{{task.updated|date('Y-m-d H:i:s')}}</div>
+				<div>{{task.status}}</div>
+				<div>{{task.description}}</div>
+				<div>
+					<button class="edit" data-id="{{task.id}}">edit</button>
+					<button class="delete" data-id="{{task.id}}">delete</button>
+				</div>
+			</div>
+		{% endfor %}
+	</div>
+</div>
+<script type="text/javascript">
+const form = document.getElementById('create-task')
+const idField = document.getElementById('id')
+const title = document.getElementById('title')
+const status = document.getElementById('status')
+const description = document.getElementById('description')
+const messages = document.getElementById('messages')
+const submit = document.getElementById('submit')
+const list = document.getElementById('list')
+
+window.onload = () => {
+	document.addEventListener('click', e => {
+		if(e.target && e.target.className == 'delete') {
+			list.className = 'grey'
+
+			let elem = e.target
+			let id = elem.getAttribute('data-id')
+
+			fetch("/delete/" + id).then(resposne => {
+				loadList()
+			})
+		}
+
+		if(e.target && e.target.className == 'edit') {
+			let elem = e.target
+			let id = elem.getAttribute('data-id')
+			form.className = 'grey'
+
+			fetch("/view/"+id).then(async response => {
+				let task = await response.json()
+
+				title.value = task.title
+				status.value = task.status
+				description.value = task.description
+				idField.value = task.id
+
+				form.className = ''
+			})
+		}
+	})
+}
+
+const loadList = () => {
+	messages.innerHTML = ''
+	let html = `<div class="task-item header">
+				<div>Title</div>
+				<div>Created date</div>
+				<div>Last Updated</div>
+				<div>Status</div>
+				<div>Description</div>
+				<div>
+					ACTION
+				</div>
+			</div>`
+
+	fetch("{{path('list')}}").then(async res => {
+		let tasks = await res.json()
+
+		for (let task of tasks) {
+			let date = new Date(task.created)
+			date = date.toISOString().replace(/T/,' ').replace(/\..*/,'')
+			let updated = new Date(task.updated)
+			updated = updated.toISOString().replace(/T/, ' ').replace(/\..*/, '')
+
+			html += `
+					<div class="task-item">
+						<div>${task.title}</div>
+						<div>${date}</div>
+						<div>${updated}</div>
+						<div>${task.status}</div>
+						<div>${task.description}</div>
+						<div>
+							<button class="edit" data-id="${task.id}">edit</button>
+							<button class="delete" data-id="${task.id}">delete</button>
+						</div>
+					</div>`
+		}
+
+		list.innerHTML = html
+		list.className = ''
+	})
+}
+form.onsubmit = event => {
+	event.preventDefault()
+}
+
+submit.onclick = () => {
+	if(!title.value || !description.value) return
+	let data = {
+		title: title.value,
+		status: status.value,
+		description: description.value
+	}
+
+	list.className = 'grey'
+	form.className = 'grey'
+
+	let url = !idField.value ? "{{ path('create') }}" : "/update/"+ idField.value
+
+	fetch(url,{
+		method: 'POST',
+		mode: 'cors',
+		body: JSON.stringify(data)
+	}).then(async response => {
+
+		idField.value = ''
+		description.value = ''
+		status.value = 'new'
+		title.value = ''
+		form.className = ''
+		
+		if(response.status == 410) {
+			messages.innerHTML = await response.json()
+			
+			list.className = ''
+			form.className = ''
+			return
+		}
+		
+		loadList()
+	})
+}
+</script>
+{% endblock %}

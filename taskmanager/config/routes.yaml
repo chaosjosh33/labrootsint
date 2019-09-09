@@ -1,3 +1,25 @@
 index:
    path: /
    controller: App\Controller\TaskController::index
+   name_prefix: index
+list:
+   path: /list
+   controller: App\Controller\TaskController::list
+   name_prefix: list
+create:
+   path: /create
+   controller: App\Controller\TaskController::create
+   name_prefix: create
+update:
+   path: /update/{id}
+   controller: App\Controller\TaskController::update
+   name_prefix: update
+delete:
+   path: /delete/{id}
+   controller: App\Controller\TaskController::delete
+   name_prefix: delete
+view:
+   path: /view/{id}
+   controller: App\Controller\TaskController::view
+   name_prefix: view
+   
